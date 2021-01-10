@@ -25,6 +25,7 @@ library:
   dependencies:
   - parsec
   - mtl
+  - vector
 
 executables:
   hscheme-repl:

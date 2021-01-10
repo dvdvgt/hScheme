@@ -3,10 +3,12 @@ module HScheme.Data where
 import Control.Monad.Except
 import Data.Complex ( Complex )
 import Text.ParserCombinators.Parsec ( ParseError )
+import qualified Data.Vector as V
 
 data Value = Atom String
     | List [Value]
     | DottedList [Value] Value
+    | Vector (V.Vector Value)
     | Number Integer 
     | Float Double
     | Ratio Rational
@@ -14,6 +16,7 @@ data Value = Atom String
     | String String
     | Character Char
     | Bool Bool
+    deriving (Eq)
 
 instance Show Value where
     show (String s) = "\"" ++ s ++ "\""
@@ -27,6 +30,7 @@ instance Show Value where
     show (Bool False) = "#f"
     show (List xs) = "(" ++ unwordsList xs ++ ")"
     show (DottedList head tail) = "(" ++ unwordsList head ++ " . " ++ show tail ++ ")"
+    show (Vector vs) = "#(" ++ unwordsList (V.toList vs) ++ ")"
 
 unwordsList :: [Value] -> String
 unwordsList = unwords . map show
@@ -48,10 +52,11 @@ instance Show Error where
                                         ++ " args; found values " ++ unwordsList found
     show (TypeMismatch expected found)  = "Invalid Type: expected " ++ expected
                                         ++ ", found " ++ show found
-    show (Parser err)                    = "Parse error at " ++ show err
+    show (Parser err)                   = "Parse error at " ++ show err
     show (BadSpecialForm message form)  = message ++ ": " ++ show form
     show (NotFunction message func)     = message ++ ": " ++ show func
     show (UnboundVar message varname)   = message ++ ": " ++ varname
+    show (Default message)              = message
 
 type ThrowsErr = Either Error
 

@@ -9,16 +9,17 @@ import Data.Complex ( Complex((:+)) )
 import Numeric ( readHex, readOct )
 import Data.List ( foldl' )
 import Control.Monad.Except
+import qualified Data.Vector as V
 
 symbol :: Parser Char
-symbol = oneOf "!$%&|*+-/:<=>?@^_~"
+symbol = oneOf "!$%&|*+/:<=>?@^_~"
 
 spaces :: Parser ()
 spaces = skipMany1 space
 
 parseBool :: Parser Value
-parseBool = do
-    try $ char '#'
+parseBool = try $ do
+    char '#'
     (char 't' >> return (Bool True)) <|> (char 'f' >> return (Bool False))
 
 parseString :: Parser Value
@@ -65,7 +66,9 @@ parseAtom = do
 -}
 
 parseDecimal :: Parser Value
-parseDecimal = many1 digit >>= (return . Number . read)
+parseDecimal = do 
+    sign <- option "" $ string "-" 
+    many1 digit >>= (return . Number . read . (sign <>))
 
 parseDecimal' :: Parser Value
 parseDecimal' = try $ string "#d" >> many1 digit >>= (return . Number . read)
@@ -102,16 +105,17 @@ parseNumber = do
 
 parseFloat :: Parser Value
 parseFloat = try $ do
+    sign <- option "" $ string "-"
     x <- many1 digit
     y <- (:) <$> char '.' <*> many1 digit
-    return $ Float $ read $ x <> y
+    return $ Float $ read $ sign <> x <> y
 
 parseRatio :: Parser Value
 parseRatio = try $ do
-    x <- many1 digit
+    (Number x) <- parseDecimal
     char '/'
-    y <- many1 digit
-    return $ Ratio (read x % read y)
+    (Number y) <- parseDecimal
+    return $ Ratio (x % y)
 
 parseComplex :: Parser Value
 parseComplex = try $ do
@@ -134,6 +138,7 @@ parseExpr = parseAtom
     <|> parseNumber
     <|> parseBool
     <|> parseQuoted
+    <|> parseVector
     <|> parseList
 
 {-
@@ -161,6 +166,13 @@ parseQuoted = do
     char '\''
     x <- parseExpr
     return $ List [Atom "quote", x]
+
+parseVector :: Parser Value 
+parseVector = do
+    try $ string "#("
+    values <- sepBy parseExpr spaces
+    char ')'
+    return $ Vector (V.fromList values)
 
 readExpr :: String -> ThrowsErr Value
 readExpr input = case parse parseExpr "" input of
